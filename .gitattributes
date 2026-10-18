@@ -1,0 +1,5 @@
+# Generated code and the baseline image are compared byte for byte; keep LF everywhere.
+* text=auto eol=lf
+*.binpb binary
+*.jpg binary
+*.png binary

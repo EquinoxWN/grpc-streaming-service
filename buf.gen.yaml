@@ -1,0 +1,13 @@
+# Code generation with local, version-pinned plugins (installed by scripts/get-buf.sh into .tmp/bin),
+# so generation needs no network and no Buf account.
+version: v2
+clean: true
+plugins:
+  - local: .tmp/bin/protoc-gen-go
+    out: gen
+    opt: paths=source_relative
+  - local: .tmp/bin/protoc-gen-go-grpc
+    out: gen
+    opt: paths=source_relative
+inputs:
+  - directory: proto

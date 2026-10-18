@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package ticker.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/EquinoxWN/grpc-streaming-service/gen/ticker/v1;tickerv1";
+
+// PriceService serves simulated quotes for a fixed list of fictional symbols.
+service PriceService {
+  // GetQuote returns the latest quote for one symbol.
+  rpc GetQuote(GetQuoteRequest) returns (GetQuoteResponse);
+  // StreamQuotes sends one quote per symbol every interval until max_updates quotes were sent
+  // or the client cancels.
+  rpc StreamQuotes(StreamQuotesRequest) returns (stream StreamQuotesResponse);
+  // WatchQuotes streams quotes for a set of symbols that the client changes while it runs.
+  // The stream ends when the client closes its side.
+  rpc WatchQuotes(stream WatchQuotesRequest) returns (stream WatchQuotesResponse);
+}
+
+// Quote is one price observation.
+message Quote {
+  // Symbol, 1 to 5 upper-case letters.
+  string symbol = 1;
+  // Price in millionths of the currency unit (fixed point, no floating-point rounding).
+  int64 price_micros = 2;
+  // Change since the previous tick, in millionths.
+  int64 change_micros = 3;
+  // Tick number of the simulated market; increases by one per market step.
+  int64 tick = 4;
+  // Time of the tick.
+  google.protobuf.Timestamp time = 5;
+}
+
+// GetQuoteRequest names one symbol.
+message GetQuoteRequest {
+  string symbol = 1;
+}
+
+// GetQuoteResponse carries the latest quote.
+message GetQuoteResponse {
+  Quote quote = 1;
+}
+
+// StreamQuotesRequest selects symbols, pace and length of a stream.
+message StreamQuotesRequest {
+  // 1 to 20 distinct symbols.
+  repeated string symbols = 1;
+  // Milliseconds between rounds, 10 to 60000.
+  uint32 interval_ms = 2;
+  // Total quotes to send, 0 for no limit (until the client cancels), at most 100000.
+  uint32 max_updates = 3;
+}
+
+// StreamQuotesResponse carries one quote.
+message StreamQuotesResponse {
+  Quote quote = 1;
+}
+
+// WatchQuotesRequest changes the watched set; unsubscribes apply after subscribes.
+message WatchQuotesRequest {
+  repeated string subscribe = 1;
+  repeated string unsubscribe = 2;
+  // Milliseconds between rounds, 10 to 60000; 0 keeps the current pace (default 200).
+  uint32 interval_ms = 3;
+}
+
+// WatchQuotesResponse is either a quote or the new watched set after a request.
+message WatchQuotesResponse {
+  oneof event {
+    Quote quote = 1;
+    Subscription subscription = 2;
+  }
+}
+
+// Subscription lists the symbols being watched, sorted.
+message Subscription {
+  repeated string symbols = 1;
+}

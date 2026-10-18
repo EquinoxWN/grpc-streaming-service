@@ -1,0 +1,44 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege: the workflow can read the code and nothing else.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Every action is pinned to a full commit SHA.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # buf breaking compares pull requests with their base branch
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.9"
+          cache-dependency-path: go.sum
+      # gofmt, go vet, buf lint and format, generated-code drift, breaking-change gate, tests (race).
+      - run: make ci
+      - name: Breaking changes against the base branch (pull requests)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: .tmp/bin/buf breaking --against ".git#branch=origin/${BASE_REF}"
+      - name: Known-vulnerability audit
+        run: make audit
+      # Real server and client over loopback TCP; prints notices with the results.
+      - name: Demo (unary, server streaming, bidirectional)
+        run: |
+          make demo | tee .tmp/demo.log
+          echo "::notice title=grpc demo::$(grep '^RESULT' .tmp/demo.log)"
+          echo "::notice title=breaking-change gate::$(bash scripts/breaking-check.sh | grep '^RESULT')"

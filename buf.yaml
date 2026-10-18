@@ -1,0 +1,11 @@
+# Buf module: the API contract. `buf lint` enforces the style guide; `buf breaking` refuses changes
+# that would break existing clients (wire compatibility at the FILE level).
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - FILE
