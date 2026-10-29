@@ -82,7 +82,7 @@ client deadlines already end streams (shown in the demo), and server-side deadli
 |---|---|---|
 | Contract | Protocol Buffers in a Buf v2 module (buf v1.73.0): STANDARD lint, format, FILE-level breaking checks against a committed image and the base branch | |
 | Code generation | protoc-gen-go v1.36.12 and protoc-gen-go-grpc v1.6.2, local and pinned; drift check in CI | Connect-RPC handlers (M3) |
-| Service | Go 1.26, grpc-go v1.84.0: unary, server-streaming, bidirectional; health service; message, stream and keepalive limits | Server deadlines and propagation, bounded buffers (M2) |
+| Service | Go 1.26, grpc-go v1.85.0: unary, server-streaming, bidirectional; health service; message, stream and keepalive limits | Server deadlines and propagation, bounded buffers (M2) |
 | Client | `tickerctl` CLI with per-call deadlines | Browser client over Connect (M3) |
 | Tests | Go tests on an in-memory listener and over loopback TCP; govulncheck | ghz load tests (M3) |
 
@@ -135,7 +135,7 @@ Latest local run (full detail in [docs/results/m1.md](docs/results/m1.md)):
 
 | Check | Result |
 |---|---|
-| Tests | 15 passed, 0 failed (Go 1.26.9; streaming tests also passed 5 runs in a row; CI adds the race detector) |
+| Tests | 15 passed, 0 failed (Go 1.26.10; streaming tests also passed 5 runs in a row; CI adds the race detector) |
 | Contract | buf lint and format clean; generated code matches; compatible with the baseline |
 | Breaking-change gate | 4/4 breaking edits refused (type, number, removed RPC, rename), 1/1 compatible edit accepted |
 | Demo | unary, server stream (6 quotes), bidirectional watch (2 changes), NotFound, DeadlineExceeded; no process left |
