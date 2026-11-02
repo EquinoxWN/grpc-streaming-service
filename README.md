@@ -11,7 +11,7 @@ Part of my **Backend and API** list · Go
 
 The `ticker.v1` contract lives in a Buf module. `buf lint` and `buf format` are clean, the
 generated Go code matches the contract, and the breaking-change gate refuses 4 of 4 typical
-breaking edits while accepting a compatible one. 15 Go tests pass and govulncheck finds nothing:
+breaking edits while accepting a compatible one. 18 Go tests pass (15 when the image below was taken) and govulncheck finds nothing:
 
 ![gofmt, go vet, buf lint and format, generated-code check, breaking-change check, go test and govulncheck output](docs/proof/tests.jpg)
 
@@ -129,13 +129,13 @@ Latest local run (full detail in [docs/results/m1.md](docs/results/m1.md)):
 | Test file | Tests | What it proves |
 |---|---|---|
 | `internal/market/market_test.go` | 4 | Deterministic per seed; lazy catch-up equals step by step; moves stay within ±0.50% and positive over 2,000 ticks; bad input refused |
-| `internal/server/server_test.go` | 8 | Unary and NotFound; exact `max_updates` in order; cancel stops the handler (active streams back to 0); 7 bad requests refused; bidirectional subscribe, acknowledge, unsubscribe, clean end; oversized message refused; health SERVING |
+| `internal/server/server_test.go` | 11 | Unary and NotFound; exact `max_updates` in order; every limit accepts its exact maximum; watched-set cap across requests; interval change takes effect; cancel stops the handler (active streams back to 0); 7 bad requests refused; bidirectional subscribe, acknowledge, unsubscribe, clean end; oversized message refused; health SERVING |
 | `cmd/tickerctl/main_test.go` | 2 | End to end over TCP for quote, stream and watch; NotFound and DeadlineExceeded reach the caller |
 | `cmd/ticker-server/main_test.go` | 1 | Loopback addresses only |
 
 | Check | Result |
 |---|---|
-| Tests | 15 passed, 0 failed (Go 1.26.10; streaming tests also passed 5 runs in a row; CI adds the race detector) |
+| Tests | 18 passed, 0 failed (Go 1.26.10; streaming tests also passed 5 runs in a row; CI adds the race detector) |
 | Contract | buf lint and format clean; generated code matches; compatible with the baseline |
 | Breaking-change gate | 4/4 breaking edits refused (type, number, removed RPC, rename), 1/1 compatible edit accepted |
 | Demo | unary, server stream (6 quotes), bidirectional watch (2 changes), NotFound, DeadlineExceeded; no process left |
@@ -184,6 +184,7 @@ What this repo must show before it counts as done:
 - [ADR 0002: stream the latest price each round instead of queueing every tick](docs/adr/0002-sample-latest-price-per-round.md)
 - [ADR 0003: check breaking changes against a committed Buf image as well as the base branch](docs/adr/0003-committed-contract-baseline.md)
 - [M1 results](docs/results/m1.md)
+- [Quality check 2026-11-01](docs/quality/2026-11-01.md): the ten engineering rules, evidence and mutation results
 
 ## Scope
 

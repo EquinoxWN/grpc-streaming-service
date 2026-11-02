@@ -251,3 +251,83 @@ func TestHealthReportsServing(t *testing.T) {
 		t.Fatalf("health %v %v", resp, err)
 	}
 }
+
+// wideService returns a service over a market with 30 symbols, more than MaxSymbols.
+func wideService(t *testing.T) (*Service, []string) {
+	t.Helper()
+	opening := map[string]int64{}
+	var syms []string
+	for i := range 30 {
+		sym := "S" + string(rune('A'+i/26)) + string(rune('A'+i%26))
+		opening[sym] = 1_000_000
+		syms = append(syms, sym)
+	}
+	m, err := market.New(1, opening, time.Second, time.Now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return New(m), syms
+}
+
+func TestLimitsAcceptTheirExactMaximum(t *testing.T) {
+	s, syms := wideService(t)
+	if err := s.checkSymbols(syms[:MaxSymbols], false); err != nil {
+		t.Errorf("%d symbols refused: %v", MaxSymbols, err)
+	}
+	if err := s.checkSymbols(syms[:MaxSymbols+1], false); code(err) != codes.InvalidArgument {
+		t.Errorf("%d symbols: %v", MaxSymbols+1, err)
+	}
+	for _, ms := range []uint32{uint32(MinInterval.Milliseconds()), uint32(MaxInterval.Milliseconds())} {
+		if _, err := interval(ms, DefaultInterval); err != nil {
+			t.Errorf("interval %d ms refused: %v", ms, err)
+		}
+	}
+	_, conn := harness(t)
+	c := tickerv1.NewPriceServiceClient(conn)
+	st, err := c.StreamQuotes(ctx(t), &tickerv1.StreamQuotesRequest{Symbols: []string{"ACME"}, IntervalMs: 10, MaxUpdates: MaxUpdates})
+	if err == nil {
+		_, err = st.Recv()
+	}
+	if err != nil {
+		t.Errorf("max_updates %d refused: %v", MaxUpdates, err)
+	}
+}
+
+func TestWatchedSetIsCappedAcrossRequests(t *testing.T) {
+	s, syms := wideService(t)
+	watched, every, err := s.apply(nil, DefaultInterval, &tickerv1.WatchQuotesRequest{Subscribe: syms[:15]})
+	if err != nil || len(watched) != 15 {
+		t.Fatalf("first request: %v %v", watched, err)
+	}
+	if _, _, err := s.apply(watched, every, &tickerv1.WatchQuotesRequest{Subscribe: syms[15:25]}); code(err) != codes.InvalidArgument {
+		t.Fatalf("25 watched symbols: %v, want InvalidArgument", err)
+	}
+	if got, _, err := s.apply(watched, every, &tickerv1.WatchQuotesRequest{Subscribe: syms[15:25], Unsubscribe: syms[:5]}); err != nil || len(got) != MaxSymbols {
+		t.Fatalf("swap of 5 for 10: %v %v", got, err)
+	}
+}
+
+func TestWatchIntervalChangeTakesEffect(t *testing.T) {
+	_, conn := harness(t)
+	c := tickerv1.NewPriceServiceClient(conn)
+	s, err := c.WatchQuotes(ctx(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Send(&tickerv1.WatchQuotesRequest{Subscribe: []string{"ACME"}, IntervalMs: 60_000}); err != nil {
+		t.Fatal(err)
+	}
+	if r, err := s.Recv(); err != nil || r.GetSubscription() == nil {
+		t.Fatalf("first event %v %v", r, err)
+	}
+	time.Sleep(700 * time.Millisecond) // the default 200 ms interval would have sent quotes by now
+	if err := s.Send(&tickerv1.WatchQuotesRequest{IntervalMs: 10}); err != nil {
+		t.Fatal(err)
+	}
+	if r, err := s.Recv(); err != nil || r.GetSubscription() == nil {
+		t.Fatalf("quote arrived during a 60 s interval: %v %v", r, err)
+	}
+	if r, err := s.Recv(); err != nil || r.GetQuote().GetSymbol() != "ACME" {
+		t.Fatalf("no quote after switching to 10 ms: %v %v", r, err)
+	}
+}
