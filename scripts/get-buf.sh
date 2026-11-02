@@ -18,7 +18,7 @@ esac
 [ "$(uname -m)" = x86_64 ] || { echo "only amd64 is pinned" >&2; exit 1; }
 
 if [ ! -x "$BIN/buf$EXE" ]; then
-  curl --proto '=https' --tlsv1.2 -fsSL --retry 3 -o "$BIN/buf$EXE.part" \
+  curl --proto '=https' --tlsv1.2 -fsSL --retry 3 --connect-timeout 20 --max-time 300 -o "$BIN/buf$EXE.part" \
     "https://github.com/bufbuild/buf/releases/download/$BUF_VERSION/$ASSET"
   got=$(sha256sum "$BIN/buf$EXE.part" | cut -d' ' -f1)
   [ "$got" = "$WANT" ] || { echo "buf checksum mismatch: got $got, want $WANT" >&2; rm -f "$BIN/buf$EXE.part"; exit 1; }
